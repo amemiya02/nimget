@@ -5,10 +5,10 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.0.0",
-			"CompanyName": "godl",
-			"FileDescription": "godl download manager",
+			"CompanyName": "amemiya02",
+			"FileDescription": "NimGet download manager",
 			"LegalCopyright": "Copyright 2026 amemiya02. Apache-2.0.",
-			"ProductName": "godl"
+			"ProductName": "NimGet"
 		}
 	}
 }
