@@ -53,7 +53,7 @@ release:
     | | |
     | --- | --- |
     | macOS app | `godl-desktop_{{ .Version }}_macos_universal.dmg`, or `brew install --cask amemiya02/tap/godl-desktop` |
-    | Windows app | `godl-desktop_{{ .Version }}_windows_amd64_setup.exe`, `winget install amemiya02.godl` (once winget has accepted the version), or `scoop install amemiya02/godl-desktop` after `scoop bucket add amemiya02 https://github.com/amemiya02/scoop-bucket` |
+    | Windows app | `godl-desktop_{{ .Version }}_windows_amd64_setup.exe`, or `scoop install amemiya02/godl-desktop` after `scoop bucket add amemiya02 https://github.com/amemiya02/scoop-bucket` |
     | CLI and service | the `godl_{{ .Version }}_*` archives, `brew install amemiya02/tap/godl`, or `scoop install amemiya02/godl` after adding the bucket |
 
     The builds are not signed. See [docs/install.md](https://github.com/amemiya02/godl/blob/main/docs/install.md) for the one-time Gatekeeper and SmartScreen steps. Desktop checksums are in `desktop-checksums.txt`.
