@@ -476,7 +476,15 @@ NOTICE          godl attribution
 | `amemiya02/homebrew-tap` | cask (GUI) and formula (CLI) | Homebrew's official cask repository removes casks that fail Gatekeeper checks from 2026-09-01, so the GUI cannot go there unsigned |
 | winget, scoop | Windows GUI and CLI | |
 
-The README documents the Gatekeeper workaround (allow in System Settings, or
+Package names: Homebrew formula `godl` (CLI) and cask `godl-desktop` in
+`amemiya02/homebrew-tap`; Scoop `godl` and `godl-desktop` in `amemiya02/scoop-bucket`;
+winget `amemiya02.godl` (the per-user NSIS installer). `tools/packaging` renders all of
+them from the release checksums; the release workflow pushes the tap and bucket when a
+`TAP_TOKEN` secret exists and attaches the manifests to the release either way. The
+release workflow also installs the dmg and the installer on clean GitHub runners,
+launches the app, and downloads a file through it (the M6 install-to-download check).
+
+docs/install.md documents the Gatekeeper workaround (allow in System Settings, or
 `xattr -dr com.apple.quarantine /Applications/godl.app`) and the SmartScreen
 "More info → Run anyway" path.
 
