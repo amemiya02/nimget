@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/amemiya02/godl/internal/settings"
+	"github.com/amemiya02/nimget/internal/settings"
 	"golang.org/x/time/rate"
 )
 

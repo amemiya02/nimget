@@ -19,10 +19,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/hls"
-	"github.com/amemiya02/godl/internal/logging"
-	"github.com/amemiya02/godl/internal/settings"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/hls"
+	"github.com/amemiya02/nimget/internal/logging"
+	"github.com/amemiya02/nimget/internal/settings"
 	"golang.org/x/time/rate"
 )
 

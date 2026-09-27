@@ -19,9 +19,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/amemiya02/godl/internal/filelock"
-	"github.com/amemiya02/godl/internal/hls"
-	"github.com/amemiya02/godl/internal/quarantine"
+	"github.com/amemiya02/nimget/internal/filelock"
+	"github.com/amemiya02/nimget/internal/hls"
+	"github.com/amemiya02/nimget/internal/quarantine"
 	"golang.org/x/time/rate"
 )
 
@@ -129,7 +129,7 @@ func New(cfg Config) (*Engine, error) {
 		return nil, errors.New("max attempts must be at least 1")
 	}
 	if cfg.UserAgent == "" {
-		cfg.UserAgent = "godl/1.0"
+		cfg.UserAgent = "nimget/1.0"
 	}
 	if cfg.FileMode == 0 {
 		cfg.FileMode = 0o644

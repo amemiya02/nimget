@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/secrets"
-	"github.com/amemiya02/godl/internal/service"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/secrets"
+	"github.com/amemiya02/nimget/internal/service"
 )
 
 type idleRunner struct{}
@@ -31,7 +31,7 @@ func startService(t *testing.T) (*service.Service, string, context.CancelFunc) {
 	tokenPath := filepath.Join(dir, "token")
 	svc, err := service.New(service.Config{
 		Address:       "127.0.0.1:0",
-		DatabasePath:  filepath.Join(dir, "godl.db"),
+		DatabasePath:  filepath.Join(dir, "nimget.db"),
 		TokenPath:     tokenPath,
 		DownloadRoots: []string{filepath.Join(dir, "downloads")},
 		Runner:        idleRunner{},

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amemiya02/godl/internal/netproxy"
+	"github.com/amemiya02/nimget/internal/netproxy"
 )
 
 const (

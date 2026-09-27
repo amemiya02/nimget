@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/hls"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/hls"
 )
 
 // Runner adapts the engine to the service's download.Runner contract. Every

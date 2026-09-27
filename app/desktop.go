@@ -16,14 +16,14 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
-	"github.com/amemiya02/godl/internal/curlimport"
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/logging"
-	"github.com/amemiya02/godl/internal/manager"
-	"github.com/amemiya02/godl/internal/netproxy"
-	"github.com/amemiya02/godl/internal/service"
-	"github.com/amemiya02/godl/internal/settings"
-	"github.com/amemiya02/godl/internal/update"
+	"github.com/amemiya02/nimget/internal/curlimport"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/logging"
+	"github.com/amemiya02/nimget/internal/manager"
+	"github.com/amemiya02/nimget/internal/netproxy"
+	"github.com/amemiya02/nimget/internal/service"
+	"github.com/amemiya02/nimget/internal/settings"
+	"github.com/amemiya02/nimget/internal/update"
 )
 
 // Event names emitted to the frontend.
@@ -76,7 +76,7 @@ type Desktop struct {
 type State struct {
 	Version string `json:"version"`
 	// Error is set when the service failed to start, for example because a
-	// headless "godl service" already holds the loopback port.
+	// headless "nimget service" already holds the loopback port.
 	Error            string `json:"error,omitempty"`
 	DefaultDirectory string `json:"defaultDirectory"`
 	Autostart        bool   `json:"autostart"`
@@ -471,7 +471,7 @@ func (d *Desktop) watchReleases(ctx context.Context) {
 	if err != nil {
 		return
 	}
-	// The check goes through the proxy configured in godl, like downloads.
+	// The check goes through the proxy configured in nimget, like downloads.
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = netproxy.Func(func() netproxy.Config { return d.mgr.Settings().Proxy })
 	checker := &update.Checker{
@@ -525,7 +525,7 @@ func openLog() (*slog.Logger, io.Closer) {
 	if err != nil {
 		return logging.New(os.Stderr, slog.LevelInfo), io.NopCloser(nil)
 	}
-	f, err := logging.OpenRotating(filepath.Join(dir, "godl.log"), 10<<20, 3)
+	f, err := logging.OpenRotating(filepath.Join(dir, "nimget.log"), 10<<20, 3)
 	if err != nil {
 		return logging.New(os.Stderr, slog.LevelInfo), io.NopCloser(nil)
 	}

@@ -11,8 +11,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/settings"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/settings"
 )
 
 type Client struct {

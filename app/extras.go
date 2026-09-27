@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/amemiya02/godl/internal/batch"
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/power"
-	"github.com/amemiya02/godl/internal/queuefile"
-	"github.com/amemiya02/godl/internal/remux"
+	"github.com/amemiya02/nimget/internal/batch"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/power"
+	"github.com/amemiya02/nimget/internal/queuefile"
+	"github.com/amemiya02/nimget/internal/remux"
 )
 
 // eventQueueDone carries the action to run once the queue has emptied; the

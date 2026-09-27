@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amemiya02/godl/internal/api"
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/settings"
+	"github.com/amemiya02/nimget/internal/api"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/settings"
 )
 
 const token = "test-token"

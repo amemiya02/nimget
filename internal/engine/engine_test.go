@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/amemiya02/godl/internal/filelock"
+	"github.com/amemiya02/nimget/internal/filelock"
 )
 
 func run(t *testing.T, cfg Config, url, dest string) error {

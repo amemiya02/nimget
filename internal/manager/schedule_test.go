@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/manager"
-	"github.com/amemiya02/godl/internal/settings"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/manager"
+	"github.com/amemiya02/nimget/internal/settings"
 	"golang.org/x/time/rate"
 )
 

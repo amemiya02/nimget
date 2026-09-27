@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/secrets"
-	"github.com/amemiya02/godl/internal/settings"
-	"github.com/amemiya02/godl/internal/store"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/secrets"
+	"github.com/amemiya02/nimget/internal/settings"
+	"github.com/amemiya02/nimget/internal/store"
 )
 
 func TestSQLiteStorePersistsDownloadLifecycle(t *testing.T) {
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "godl.db")
+	path := filepath.Join(t.TempDir(), "nimget.db")
 
 	db, err := store.Open(path, nil)
 	if err != nil {
@@ -74,7 +74,7 @@ func TestSQLiteStorePersistsDownloadLifecycle(t *testing.T) {
 }
 
 func TestSQLiteStoreReportsMissingDownload(t *testing.T) {
-	db, err := store.Open(filepath.Join(t.TempDir(), "godl.db"), nil)
+	db, err := store.Open(filepath.Join(t.TempDir(), "nimget.db"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestSQLiteStoreReportsMissingDownload(t *testing.T) {
 
 func TestSQLiteStoreProgressOnlyUpdatesRunningItemsAndDeletes(t *testing.T) {
 	ctx := context.Background()
-	db, err := store.Open(filepath.Join(t.TempDir(), "godl.db"), nil)
+	db, err := store.Open(filepath.Join(t.TempDir(), "nimget.db"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestSQLiteStoreProgressOnlyUpdatesRunningItemsAndDeletes(t *testing.T) {
 
 func TestSQLiteStoreRoundTripsOptionsAndSettings(t *testing.T) {
 	ctx := context.Background()
-	db, err := store.Open(filepath.Join(t.TempDir(), "godl.db"), nil)
+	db, err := store.Open(filepath.Join(t.TempDir(), "nimget.db"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ INSERT INTO downloads VALUES ('old', 'https://example.com/f', '/tmp/f', 'paused'
 // as empty instead of failing.
 func TestSQLiteStoreSealsSecrets(t *testing.T) {
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "godl.db")
+	path := filepath.Join(t.TempDir(), "nimget.db")
 	key := make([]byte, 32)
 	sealer, _ := secrets.New(key)
 	db, err := store.Open(path, sealer)

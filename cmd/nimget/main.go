@@ -19,15 +19,15 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/amemiya02/godl/internal/batch"
-	"github.com/amemiya02/godl/internal/client"
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/engine"
-	"github.com/amemiya02/godl/internal/logging"
-	"github.com/amemiya02/godl/internal/netproxy"
-	"github.com/amemiya02/godl/internal/queuefile"
-	"github.com/amemiya02/godl/internal/service"
-	"github.com/amemiya02/godl/internal/settings"
+	"github.com/amemiya02/nimget/internal/batch"
+	"github.com/amemiya02/nimget/internal/client"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/engine"
+	"github.com/amemiya02/nimget/internal/logging"
+	"github.com/amemiya02/nimget/internal/netproxy"
+	"github.com/amemiya02/nimget/internal/queuefile"
+	"github.com/amemiya02/nimget/internal/service"
+	"github.com/amemiya02/nimget/internal/settings"
 	"golang.org/x/time/rate"
 )
 
@@ -73,9 +73,9 @@ type cliConfig struct {
 func main() {
 	log.SetFlags(0)
 	cfg := &cliConfig{address: "http://127.0.0.1:51000"}
-	root := &cobra.Command{Use: "godl", Short: "A local download manager", SilenceUsage: true, SilenceErrors: true}
+	root := &cobra.Command{Use: "nimget", Short: "A local download manager", SilenceUsage: true, SilenceErrors: true}
 	root.PersistentFlags().StringVar(&cfg.address, "address", cfg.address, "service base URL")
-	root.PersistentFlags().StringVar(&cfg.tokenFile, "token-file", "", "service token file (default: in the godl data directory)")
+	root.PersistentFlags().StringVar(&cfg.tokenFile, "token-file", "", "service token file (default: in the nimget data directory)")
 	root.AddCommand(
 		newServiceCommand(cfg),
 		newAddCommand(cfg),
@@ -102,7 +102,7 @@ func newVersionCommand() *cobra.Command {
 		Short: "Print version information",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, _ []string) {
-			fmt.Fprintf(cmd.OutOrStdout(), "godl %s (commit %s, built %s)\n", version, commit, date)
+			fmt.Fprintf(cmd.OutOrStdout(), "nimget %s (commit %s, built %s)\n", version, commit, date)
 		},
 	}
 }
@@ -137,7 +137,7 @@ func newServiceCommand(cfg *cliConfig) *cobra.Command {
 			if err := svc.Start(ctx); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "godl service listening on %s\n", svc.Address())
+			fmt.Fprintf(cmd.OutOrStdout(), "nimget service listening on %s\n", svc.Address())
 			return svc.Wait()
 		},
 	}
@@ -158,7 +158,7 @@ func (cfg *cliConfig) client() (*client.Client, error) {
 	}
 	token, err := service.ReadToken(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("no service token at %s; start the service with 'godl service' first", path)
+		return nil, fmt.Errorf("no service token at %s; start the service with 'nimget service' first", path)
 	}
 	if err != nil {
 		return nil, err

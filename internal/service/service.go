@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/amemiya02/godl/internal/api"
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/engine"
-	"github.com/amemiya02/godl/internal/manager"
-	"github.com/amemiya02/godl/internal/netproxy"
-	"github.com/amemiya02/godl/internal/secrets"
-	"github.com/amemiya02/godl/internal/store"
+	"github.com/amemiya02/nimget/internal/api"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/engine"
+	"github.com/amemiya02/nimget/internal/manager"
+	"github.com/amemiya02/nimget/internal/netproxy"
+	"github.com/amemiya02/nimget/internal/secrets"
+	"github.com/amemiya02/nimget/internal/store"
 )
 
 type Config struct {

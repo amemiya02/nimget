@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amemiya02/godl/internal/download"
-	"github.com/amemiya02/godl/internal/secrets"
-	"github.com/amemiya02/godl/internal/settings"
+	"github.com/amemiya02/nimget/internal/download"
+	"github.com/amemiya02/nimget/internal/secrets"
+	"github.com/amemiya02/nimget/internal/settings"
 	_ "modernc.org/sqlite"
 )
 
@@ -71,7 +71,7 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("read schema version: %w", err)
 	}
 	if version > len(migrations) {
-		return fmt.Errorf("database schema version %d is newer than this godl (%d)", version, len(migrations))
+		return fmt.Errorf("database schema version %d is newer than this nimget (%d)", version, len(migrations))
 	}
 	for i := version; i < len(migrations); i++ {
 		tx, err := db.Begin()

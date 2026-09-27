@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/amemiya02/godl/internal/download"
+	"github.com/amemiya02/nimget/internal/download"
 )
 
 func TestDrained(t *testing.T) {
