@@ -20,8 +20,8 @@ The roadmap and design contract live in [DESIGN.md](DESIGN.md).
 | | |
 | --- | --- |
 | macOS app | `brew install --cask amemiya02/tap/godl-desktop`, or the `.dmg` from [Releases](https://github.com/amemiya02/godl/releases/latest) |
-| Windows app | `winget install amemiya02.godl`, `scoop install godl-desktop` (bucket `amemiya02/scoop-bucket`), or the installer from Releases |
-| CLI (macOS, Linux, Windows) | `brew install amemiya02/tap/godl`, `scoop install godl`, or an archive from Releases |
+| Windows app | `winget install amemiya02.godl`, `scoop install amemiya02/godl-desktop` (after `scoop bucket add amemiya02 https://github.com/amemiya02/scoop-bucket`), or the installer from Releases |
+| CLI (macOS, Linux, Windows) | `brew install amemiya02/tap/godl`, `scoop install amemiya02/godl`, or an archive from Releases |
 
 The builds are unsigned, so the first launch needs one confirmation: [docs/install.md](docs/install.md) has the steps for Gatekeeper and SmartScreen.
 
