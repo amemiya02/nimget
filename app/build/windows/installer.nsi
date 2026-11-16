@@ -26,6 +26,7 @@ VIAddVersionKey "CompanyName" "amemiya02"
 VIAddVersionKey "ProductName" "${PRODUCT}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "FileVersion" "${NUMVERSION}"
+VIAddVersionKey "Comments" "Source commit: ${SOURCECOMMIT}"
 VIAddVersionKey "FileDescription" "NimGet installer"
 VIAddVersionKey "LegalCopyright" "Copyright 2026 amemiya02. Apache-2.0."
 
