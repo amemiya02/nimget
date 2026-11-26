@@ -25,6 +25,9 @@ _Avoid_: NimGet login, NimGet account
 The user's revocable authorization for a browser extension to communicate with their local NimGet application.
 _Avoid_: Login, website session
 
+**Handoff receipt**:
+NimGet’s confirmation that it has durably accepted a browser handoff. It identifies the download task, including when the browser checks again after a lost reply.
+
 **Manual handoff**:
 A download explicitly sent to NimGet by the user through a browser action.
 _Avoid_: Automatic capture
