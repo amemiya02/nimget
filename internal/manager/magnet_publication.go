@@ -278,11 +278,10 @@ func (m *Manager) completeMagnetPublication(ctx context.Context, item *download.
 	completed.Error, completed.Failure = "", ""
 	completed.Completed = completed.Total
 	completed.UpdatedAt = m.opts.Now().UTC()
-	if err := m.saveMagnetCheckpoint(ctx, completed); err != nil {
+	if err := m.recordRunResult(ctx, completed); err != nil {
 		return err
 	}
 	*item = completed
-	m.publishEvent(download.Event{Type: download.EventUpdated, Item: completed, CompletedMagnetPublication: true})
 	return nil
 }
 

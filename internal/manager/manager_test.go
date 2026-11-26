@@ -512,7 +512,15 @@ func TestManagerPauseRacingCompletionKeepsTheFinishedDownload(t *testing.T) {
 		return nil
 	}}
 	repo := newMemoryRepository()
-	m, _, _ := newManager(t, repo, runner, root, nil)
+	var completions atomic.Int32
+	m, _, _ := newManager(t, repo, runner, root, func(event download.Event) {
+		if event.TaskCompleted {
+			if item := repo.get(t, event.Item.ID); item.Status != download.StatusCompleted {
+				t.Errorf("completion before persistence: %s", item.Status)
+			}
+			completions.Add(1)
+		}
+	})
 	item, err := m.Add(context.Background(), download.Request{URL: "https://example.com/f", Destination: filepath.Join(root, "f")})
 	if err != nil {
 		t.Fatal(err)
@@ -523,8 +531,15 @@ func TestManagerPauseRacingCompletionKeepsTheFinishedDownload(t *testing.T) {
 	}
 	close(release)
 	waitFor(t, "completion despite the pause", func() bool {
-		return repo.get(t, item.ID).Status == download.StatusCompleted
+		return completions.Load() > 0
 	})
+	priority := 1
+	if err := m.Update(t.Context(), item.ID, download.Patch{Priority: &priority}); err != nil {
+		t.Fatal(err)
+	}
+	if got := completions.Load(); got != 1 {
+		t.Fatalf("completed task edit emitted another completion: %d", got)
+	}
 }
 
 func TestManagerRejectsASecondDownloadToTheSameDestination(t *testing.T) {
@@ -572,5 +587,33 @@ func TestManagerRequeuesWhenTheDestinationIsBusy(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	if got := repo.get(t, item.ID); got.Status != download.StatusQueued || got.Error != "" {
 		t.Fatalf("item after a busy destination = %+v; want queued for a later retry", got)
+	}
+}
+
+func TestFailedCompletionWriteDoesNotSignalCompletion(t *testing.T) {
+	root := t.TempDir()
+	repo := newMemoryRepository()
+	runner := &funcRunner{download: func(context.Context, func(download.Progress)) error {
+		repo.mu.Lock()
+		repo.failUpdate = true
+		repo.mu.Unlock()
+		return nil
+	}}
+	var completions atomic.Int32
+	m, cancel, done := newManager(t, repo, runner, root, func(event download.Event) {
+		if event.TaskCompleted {
+			completions.Add(1)
+		}
+	})
+	item, err := m.Add(t.Context(), download.Request{URL: "https://example.com/file", Destination: filepath.Join(root, "file")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The first update starts the run. The second attempts to record its result.
+	waitFor(t, "completion write", func() bool { return repo.updates.Load() >= 2 })
+	cancel()
+	<-done
+	if got := repo.get(t, item.ID); got.Status != download.StatusRunning || completions.Load() != 0 {
+		t.Fatalf("failed completion write left status %s and %d completions", got.Status, completions.Load())
 	}
 }

@@ -12,23 +12,82 @@ import (
 	"github.com/amemiya02/nimget/internal/logging"
 )
 
-type initialResponse struct {
+// singleStream owns a full response returned by the probe until the first
+// read takes it. Dispatch can abandon the stream before a file is opened.
+type singleStream struct {
+	first *streamResponse
+}
+
+func (s *singleStream) close() {
+	if s.first != nil {
+		s.first.close()
+	}
+}
+
+type streamResponse struct {
 	resp   *http.Response
 	ctx    context.Context
 	cancel context.CancelCauseFunc
+	stall  *stallTimer
 }
 
-func (r *initialResponse) close() {
-	if r != nil && r.resp != nil {
-		r.cancel(nil)
-		_ = r.resp.Body.Close()
-		r.resp = nil
+func newStreamResponse(ctx context.Context) *streamResponse {
+	reqCtx, cancel := context.WithCancelCause(ctx)
+	return &streamResponse{ctx: reqCtx, cancel: cancel}
+}
+
+func (r *streamResponse) close() {
+	if r.stall != nil {
+		r.stall.Stop()
 	}
+	r.cancel(nil)
+	if r.resp != nil {
+		_ = r.resp.Body.Close()
+	}
+}
+
+// open takes the retained body once. Every later attempt starts a fresh GET.
+func (s *singleStream) open(ctx context.Context, j *job, etag string) (*streamResponse, *attemptError) {
+	timeout := j.engine.cfg.StallTimeout
+	response := s.first
+	if response == nil {
+		response = newStreamResponse(ctx)
+	}
+	s.first = nil
+	response.stall = newStallTimer(timeout, func() { response.cancel(ErrStalled) })
+	if response.resp != nil {
+		response.stall.Reset(timeout)
+		return response, nil
+	}
+
+	req, err := j.engine.newRequest(response.stall.trace(response.ctx), j.url)
+	if err != nil {
+		response.close()
+		return nil, fatal(err)
+	}
+	if etag != "" {
+		req.Header.Set("If-Match", etag)
+	}
+	resp, err := j.engine.cfg.ProbeClient.Do(req)
+	if err != nil {
+		failure := interruptedStream(ctx, response.ctx, logging.HTTPError(err))
+		response.close()
+		return nil, failure
+	}
+	response.resp = resp
+	return response, nil
+}
+
+func interruptedStream(ctx, reqCtx context.Context, err error) *attemptError {
+	if errors.Is(context.Cause(reqCtx), ErrStalled) && ctx.Err() == nil {
+		err = ErrStalled
+	}
+	return retryable(fmt.Errorf("download: %w", err))
 }
 
 // single downloads over one stream, using the probe body when the server
 // ignored Range. Each attempt restarts from zero.
-func (j *job) single(ctx context.Context, info probeInfo) error {
+func (j *job) single(ctx context.Context, info probeInfo, stream *singleStream) error {
 	e := j.engine
 	if err := j.discard(); err != nil {
 		return err
@@ -43,11 +102,11 @@ func (j *job) single(ctx context.Context, info probeInfo) error {
 		return fmt.Errorf("create partial file: %w", err)
 	}
 	defer f.Close()
-	if info.initial != nil {
+	if stream.first != nil {
 		// A server can advertise the full size on the Range probe but leave
 		// its body incomplete. A failed probe body does not consume any of
 		// the ordinary GET attempts.
-		first := j.singleOnce(ctx, info, f)
+		first := j.singleOnce(ctx, info, f, stream)
 		if first == nil {
 			return nil
 		}
@@ -65,7 +124,7 @@ func (j *job) single(ctx context.Context, info probeInfo) error {
 				return err
 			}
 		}
-		last = j.singleOnce(ctx, info, f)
+		last = j.singleOnce(ctx, info, f, stream)
 		if last == nil {
 			return nil
 		}
@@ -79,7 +138,7 @@ func (j *job) single(ctx context.Context, info probeInfo) error {
 	return last
 }
 
-func (j *job) singleOnce(ctx context.Context, info probeInfo, f *os.File) *attemptError {
+func (j *job) singleOnce(ctx context.Context, info probeInfo, f *os.File, stream *singleStream) *attemptError {
 	e := j.engine
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return fatal(fmt.Errorf("seek partial file: %w", err))
@@ -93,43 +152,12 @@ func (j *job) singleOnce(ctx context.Context, info probeInfo, f *os.File) *attem
 		return closeSynced(f)
 	}
 
-	initial := info.initial
-	var reqCtx context.Context
-	var cancel context.CancelCauseFunc
-	var resp *http.Response
-	if initial != nil && initial.resp != nil {
-		resp = initial.resp
-		reqCtx, cancel = initial.ctx, initial.cancel
-		defer initial.close()
-	} else {
-		reqCtx, cancel = context.WithCancelCause(ctx)
-		defer cancel(nil)
+	response, aerr := stream.open(ctx, j, info.etag)
+	if aerr != nil {
+		return aerr
 	}
-	stall := newStallTimer(e.cfg.StallTimeout, func() { cancel(ErrStalled) })
-	defer stall.Stop()
-	interrupted := func(err error) *attemptError {
-		if errors.Is(context.Cause(reqCtx), ErrStalled) && ctx.Err() == nil {
-			err = ErrStalled
-		}
-		return retryable(fmt.Errorf("download: %w", err))
-	}
-
-	if resp != nil {
-		stall.Reset(e.cfg.StallTimeout)
-	} else {
-		req, err := e.newRequest(stall.trace(reqCtx), j.url)
-		if err != nil {
-			return fatal(err)
-		}
-		if info.etag != "" {
-			req.Header.Set("If-Match", info.etag)
-		}
-		resp, err = e.cfg.ProbeClient.Do(req)
-		if err != nil {
-			return interrupted(logging.HTTPError(err))
-		}
-		defer resp.Body.Close()
-	}
+	defer response.close()
+	resp := response.resp
 	if err := identityEncoding(resp); err != nil {
 		return fatal(err)
 	}
@@ -151,14 +179,14 @@ func (j *job) singleOnce(ctx context.Context, info probeInfo, f *os.File) *attem
 	for {
 		n, readErr := resp.Body.Read(buf[:e.limit(bufferSize)])
 		if n > 0 {
-			stall.Stop()
+			response.stall.Stop()
 			if err := e.wait(ctx, n); err != nil {
-				return interrupted(err)
+				return interruptedStream(ctx, response.ctx, err)
 			}
 			if _, err := f.Write(buf[:n]); err != nil {
 				return fatal(fmt.Errorf("write partial file: %w", err))
 			}
-			stall.Reset(e.cfg.StallTimeout)
+			response.stall.Reset(e.cfg.StallTimeout)
 			written += int64(n)
 			j.progress.completed.Store(written)
 		}
@@ -166,7 +194,7 @@ func (j *job) singleOnce(ctx context.Context, info probeInfo, f *os.File) *attem
 			break
 		}
 		if readErr != nil {
-			return interrupted(readErr)
+			return interruptedStream(ctx, response.ctx, readErr)
 		}
 	}
 	if total >= 0 && written != total {

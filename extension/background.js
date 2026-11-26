@@ -1,6 +1,6 @@
 import "./capture.js";
 import { ensurePaired, pairedCredential, readCredential } from "./pairing.js";
-import { deliverHandoffReceipt, manualHandoffPrefix, manualHandoffResult, sha256Hex, supportsHandoff, updateHandoffBadge } from "./handoff.js";
+import { deliverHandoff, manualHandoffPrefix, manualHandoffResult, sha256Hex, supportsHandoff, updateHandoffBadge } from "./handoff.js";
 import {
   createWebsiteSessionDraft, readWebsiteSession, readWebsiteSessionDraft, readWebsiteSessionSnapshot,
   removeWebsiteSessionDraft, removeWebsiteSessionSnapshot, saveWebsiteSessionSnapshot, websiteSessionPrompt,
@@ -167,41 +167,31 @@ async function forgetHandoff(handoffId) {
 }
 
 async function deliver(key, record, credential, session, retry = false) {
-  let receipt;
-  try {
-    receipt = await deliverHandoffReceipt(record.request, credential, record.requiresWebsiteSession, session);
-  } catch (error) {
-    const rejected = {
-      EXTENSION_CREDENTIAL_REQUIRED: "handoffPairingRequired",
-      PAIRING_REQUIRED: "handoffPairingRequired",
-      FORBIDDEN_ORIGIN: "handoffRejected",
-      HANDOFF_CONFLICT: "handoffConflict",
-      HANDOFF_NOT_FOUND: "websiteSessionRetryNeedsConsent",
-      HANDOFF_REJECTED: "handoffRejected",
-      INVALID_HANDOFF_ID: "handoffRejected",
-      INVALID_REQUEST: "handoffRejected",
-      UNSUPPORTED_LINK: "handoffUnsupported",
-      INVALID_WEBSITE_SESSION: "websiteSessionUnavailable",
-    }[error.code];
-    if (rejected) {
-      // A rejected retry can follow an earlier ambiguous acknowledgement. The
-      // user retains the entry and can check the desktop queue or dismiss it.
-      if (retry) {
-        await chrome.storage.local.set({ [key]: { ...record, feedback: rejected } });
-      } else {
-        await removeWebsiteSessionSnapshot(record.request.handoffId);
-        await chrome.storage.local.remove(key);
-      }
-      await showResult(rejected);
-      return rejected;
+  const request = session ? { ...record.request, websiteSession: session } : record.request;
+  // A missing session permits receipt lookup only. Replaying the request
+  // without the original cookies would change the handoff.
+  const outcome = await deliverHandoff(request, credential, { lookupOnly: record.requiresWebsiteSession && !session });
+  if (outcome.status !== "accepted") {
+    const feedback = {
+      pairing: "handoffPairingRequired",
+      unsupported: "handoffUnsupported",
+      conflict: "handoffConflict",
+      notFound: "websiteSessionRetryNeedsConsent",
+      invalidSession: "websiteSessionUnavailable",
+      rejected: "handoffRejected",
+      storage: "handoffStoreFailure",
+    }[outcome.reason] ?? "handoffUnconfirmed";
+    // A rejected retry can follow an earlier ambiguous acknowledgement.
+    if (outcome.status === "rejected" && !retry) {
+      await removeWebsiteSessionSnapshot(record.request.handoffId);
+      await chrome.storage.local.remove(key);
     } else {
-      const feedback = error.code === "HANDOFF_STORAGE_FAILED" ? "handoffStoreFailure" : "handoffUnconfirmed";
       await chrome.storage.local.set({ [key]: { ...record, feedback } });
-      await showResult(feedback);
-      return feedback;
     }
+    await showResult(feedback);
+    return feedback;
   }
-  const memoryOnly = receipt.websiteSessionPersistence === "memory-only";
+  const memoryOnly = outcome.receipt.websiteSessionPersistence === "memory-only";
   const feedback = memoryOnly ? "handoffAcceptedMemoryOnly" :
     record.withoutWebsiteSession ? "handoffAcceptedWithoutWebsiteSession" : "handoffAccepted";
   await removeWebsiteSessionSnapshot(record.request.handoffId);

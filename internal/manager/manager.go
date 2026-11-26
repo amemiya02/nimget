@@ -1000,13 +1000,27 @@ func (m *Manager) finish(j *job, runErr error, canceled bool) {
 	if item.Status == download.StatusQueued && item.SourceKind == download.SourceMagnet {
 		item.Phase = queuedMagnetPhase(item, netproxy.Effective(m.Settings().Proxy))
 	}
-	if err := m.repo.Update(context.Background(), item); err != nil {
+	if err := m.recordRunResult(context.Background(), item); err != nil {
 		// The row stays "running"; requeueOrphans recovers it on the next tick.
 		m.log.Error("record finished download", "id", id, "status", item.Status, "err", err)
 		return
 	}
 	m.log.Info("download stopped", "id", id, "status", item.Status, "completed", item.Completed, "total", item.Total, "failure", item.Failure)
-	m.publish(download.EventUpdated, item)
+}
+
+// recordRunResult is called under m.mu when a transfer stops or a pending
+// publication completes. Later edits to the task publish ordinary updates.
+func (m *Manager) recordRunResult(ctx context.Context, item download.Item) error {
+	save := m.repo.Update
+	completed := item.Status == download.StatusCompleted
+	if completed && item.SourceKind == download.SourceMagnet {
+		save = m.saveMagnetCheckpoint
+	}
+	if err := save(ctx, item); err != nil {
+		return err
+	}
+	m.publishEvent(download.Event{Type: download.EventUpdated, Item: item, TaskCompleted: completed})
+	return nil
 }
 
 // publishProgress coalesces engine progress reports into one event per

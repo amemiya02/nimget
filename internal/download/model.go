@@ -156,8 +156,8 @@ type Event struct {
 	Sequence int64     `json:"sequence,omitempty"`
 	Type     EventType `json:"type"`
 	Item     Item      `json:"item"`
-	// CompletedMagnetPublication also signals completion during startup recovery.
-	CompletedMagnetPublication bool `json:"-"`
+	// TaskCompleted marks the durable transition, including restart recovery.
+	TaskCompleted bool `json:"-"`
 }
 
 type Repository interface {

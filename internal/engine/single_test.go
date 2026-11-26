@@ -1,11 +1,16 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/amemiya02/nimget/internal/download"
 )
 
 func TestSingleKeepsStreamingProbeResponse(t *testing.T) {
@@ -44,6 +49,7 @@ func TestSingleRetriesWhenProbeBodyStalls(t *testing.T) {
 	server := srv.start(t)
 	cfg := testConfig()
 	cfg.StallTimeout = 200 * time.Millisecond
+	cfg.MaxAttempts = 1
 	dest := filepath.Join(t.TempDir(), "out.bin")
 	if err := run(t, cfg, server.URL, dest); err != nil {
 		t.Fatal(err)
@@ -96,5 +102,67 @@ func TestSingleFallsBackWhenProbeHasNoBody(t *testing.T) {
 	requireFile(t, dest, data)
 	if got := srv.requests.Load(); got != 2 {
 		t.Fatalf("sent %d requests after the server omitted the probe body; want 2", got)
+	}
+}
+
+type probeTransport func(*http.Request) (*http.Response, error)
+
+func (f probeTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+type countedBody struct {
+	*strings.Reader
+	closes int
+}
+
+func (b *countedBody) Close() error {
+	b.closes++
+	return nil
+}
+
+func TestFullProbeResponseOwnership(t *testing.T) {
+	for _, mode := range []string{"inspect", "dispatch rejects DASH", "consume"} {
+		t.Run(mode, func(t *testing.T) {
+			body := &countedBody{Reader: strings.NewReader("bytes")}
+			var requestCtx context.Context
+			cfg := testConfig()
+			cfg.ProbeClient = &http.Client{Transport: probeTransport(func(r *http.Request) (*http.Response, error) {
+				if requestCtx != nil {
+					t.Fatal("unexpected second request")
+				}
+				requestCtx = r.Context()
+				headers := make(http.Header)
+				if mode == "dispatch rejects DASH" {
+					headers.Set("Content-Type", "application/dash+xml")
+				}
+				return &http.Response{StatusCode: 200, ContentLength: 5, Header: headers, Request: r, Body: body}, nil
+			})}
+			engine, err := New(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			const url = "https://example.test/file"
+			dest := filepath.Join(t.TempDir(), "output")
+			switch mode {
+			case "inspect":
+				_, err = engine.Inspect(t.Context(), url)
+			case "dispatch rejects DASH":
+				err = engine.Download(t.Context(), url, dest, nil)
+				if !errors.Is(err, download.ErrUnsupportedMedia) {
+					t.Fatalf("DASH error = %v", err)
+				}
+			case "consume":
+				err = engine.Download(t.Context(), url, dest, nil)
+				requireFile(t, dest, []byte("bytes"))
+			}
+			if mode != "dispatch rejects DASH" && err != nil {
+				t.Fatal(err)
+			}
+			if body.closes != 1 || requestCtx.Err() == nil {
+				t.Fatalf("closes = %d, request error = %v", body.closes, requestCtx.Err())
+			}
+			if mode != "consume" && body.Len() != 5 {
+				t.Fatal("unused probe body was read")
+			}
+		})
 	}
 }

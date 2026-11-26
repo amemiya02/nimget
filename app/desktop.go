@@ -431,6 +431,8 @@ func (d *Desktop) publish(e download.Event) {
 
 // forward relays events to the frontend and notifies on completion.
 func (d *Desktop) forward() {
+	// Successful completion is explicit. For failures, notify only if this
+	// desktop observed the run.
 	running := map[string]bool{}
 	for e := range d.events {
 		d.app.Event.Emit(eventDownload, e)
@@ -440,13 +442,19 @@ func (d *Desktop) forward() {
 			d.app.Event.Emit(eventResync)
 		}
 		item := e.Item
+		notify := e.TaskCompleted
 		switch {
 		case e.Type == download.EventDeleted:
 			delete(running, item.ID)
 		case item.Status == download.StatusRunning:
 			running[item.ID] = true
-		case (running[item.ID] || e.CompletedMagnetPublication) && e.Type == download.EventUpdated:
+		case e.Type == download.EventUpdated:
+			if item.Status == download.StatusFailed && running[item.ID] {
+				notify = true
+			}
 			delete(running, item.ID)
+		}
+		if notify {
 			select {
 			case d.notifications <- item:
 			default: // a burst of completions; skip the extra banners

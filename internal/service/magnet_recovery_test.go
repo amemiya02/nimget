@@ -310,7 +310,7 @@ func TestMagnetPublicationRecovery(t *testing.T) {
 			case "after move":
 				select {
 				case event := <-completions:
-					if !event.CompletedMagnetPublication {
+					if !event.TaskCompleted {
 						t.Fatalf("completed publication did not signal desktop completion: %+v", event)
 					}
 				case <-ctx.Done():

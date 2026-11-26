@@ -1,6 +1,6 @@
 import { captureHandoffPrefix, captureResultKey, readCaptureSettings } from "./capture-settings.js";
-import { lookupHandoffReceipt, submitHandoffWithReceipt, supportsHandoff, updateHandoffBadge } from "./handoff.js";
-import { ExtensionRequestError, ensurePaired, pairedCredential, readCredential } from "./pairing.js";
+import { deliverHandoff, supportsHandoff, updateHandoffBadge } from "./handoff.js";
+import { ensurePaired, pairedCredential, readCredential } from "./pairing.js";
 import { readWebsiteSession } from "./website-session.js";
 import { wakeDesktop } from "./wake.js";
 
@@ -105,17 +105,22 @@ async function considerDownload(item, release) {
   }
   const request = { handoffId: crypto.randomUUID(), url: sourceUrl(item) };
   const body = websiteSession ? { ...request, websiteSession } : request;
-  let receipt = await handOff(body, credential);
-  if (receipt === "captureDesktopUnavailable" && await wakeDesktop()) receipt = await handOff(body, credential);
-  if (receipt === "capturePairingRequired") {
+  let outcome = await captureReceipt(body, credential);
+  if (outcome.reason === "unreachable" && await wakeDesktop()) outcome = await captureReceipt(body, credential);
+  if (outcome.reason === "pairing") {
     // The pairing may have been deleted in NimGet; a revoked one stays revoked.
     const paired = await pairedCredential();
-    if (paired) receipt = await handOff(body, paired);
+    if (paired) outcome = await captureReceipt(body, paired);
   }
-  if (typeof receipt === "string") {
-    // Give the download back first; the notice can follow.
+  if (outcome.status !== "accepted") {
     release();
-    return showResult(receipt);
+    const feedback = {
+      unreachable: "captureDesktopUnavailable",
+      pairing: "capturePairingRequired",
+      unsupported: "captureUnsupported",
+      local: "captureLocalFailure",
+    }[outcome.reason] ?? "captureRejected";
+    return showResult(feedback);
   }
 
   try {
@@ -126,7 +131,7 @@ async function considerDownload(item, release) {
     return showResult("captureCancelFailed");
   }
   release();
-  const memoryOnly = receipt.websiteSessionPersistence === "memory-only";
+  const memoryOnly = outcome.receipt.websiteSessionPersistence === "memory-only";
   await showResult(memoryOnly ? "captureAcceptedMemoryOnly" : "captureAccepted", "✓");
 }
 
@@ -140,26 +145,14 @@ async function pairForCapture() {
   return null;
 }
 
-// Returns the receipt, or the notice that explains why the browser keeps
-// the download.
-async function handOff(request, credential) {
-  try {
-    return await submitHandoffWithReceipt(request, credential);
-  } catch (error) {
-    if (error.code === "DESKTOP_UNREACHABLE") {
-      // The request may have reached NimGet before the reply was lost.
-      try {
-        return await lookupHandoffReceipt(request.handoffId, credential);
-      } catch (lookup) {
-        return lookup.code === "DESKTOP_UNREACHABLE" ? "captureDesktopUnavailable" : "captureRejected";
-      }
-    }
-    return {
-      EXTENSION_CREDENTIAL_REQUIRED: "capturePairingRequired",
-      PAIRING_REQUIRED: "capturePairingRequired",
-      UNSUPPORTED_LINK: "captureUnsupported",
-    }[error.code] ?? (error instanceof ExtensionRequestError ? "captureRejected" : "captureLocalFailure");
-  }
+async function captureReceipt(request, credential) {
+  const submission = await deliverHandoff(request, credential);
+  if (submission.reason !== "unreachable") return submission;
+  // The first reply may have been lost. Only a receipt can confirm it.
+  const lookup = await deliverHandoff(request, credential, { lookupOnly: true });
+  if (lookup.status === "accepted" || lookup.reason === "unreachable") return lookup;
+  // A failed lookup cannot tell us whether replaying with a new pairing is safe.
+  return { status: "unconfirmed", reason: "lookupFailed" };
 }
 
 if (chrome.downloads && !chrome.downloads.onDeterminingFilename.hasListener(downloadNamed)) {

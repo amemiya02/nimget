@@ -28,6 +28,12 @@ func TestTrackedMagnetPublishesVerifiedBytesAtFreeDestination(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	cfg := handoffServiceConfig(t)
+	var completions atomic.Int32
+	cfg.Publish = func(event download.Event) {
+		if event.TaskCompleted {
+			completions.Add(1)
+		}
+	}
 	svc := startHandoffService(t, cfg)
 	c := magnetClient(t, svc, cfg.TokenPath)
 	settings, err := c.Settings(ctx)
@@ -70,6 +76,9 @@ func TestTrackedMagnetPublishesVerifiedBytesAtFreeDestination(t *testing.T) {
 	got, err = os.ReadFile(existing)
 	if err != nil || string(got) != "existing document" {
 		t.Fatalf("existing file lost: %q, %v", got, err)
+	}
+	if got := completions.Load(); got != 1 {
+		t.Fatalf("live magnet emitted %d completions, want 1", got)
 	}
 	assertMagnetQuarantine(t, want)
 }

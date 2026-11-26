@@ -254,3 +254,17 @@ test("stale handoff notices from earlier versions are removed", async (t) => {
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(Object.keys(storage).some((key) => key.startsWith("captureHandoff:")), false);
 });
+
+test("a missing receipt after a lost reply releases the browser download", async (t) => {
+  const { download, events, transport } = await startCapture(t, {
+    fetch: async (endpoint) => {
+      if (new URL(endpoint).pathname.endsWith("/status")) {
+        return Response.json({ error: { code: "PAIRING_REQUIRED" } }, { status: 403 });
+      }
+      throw new TypeError("reply lost");
+    },
+  });
+  assert.equal((await download()).result, "captureRejected");
+  assert.equal(transport.mock.callCount(), 2);
+  assert.deepEqual(events, ["suggest"]);
+});

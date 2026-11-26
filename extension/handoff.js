@@ -15,10 +15,40 @@ export function lookupHandoffReceipt(handoffId, credential) {
   return requestReceipt("handoffs/status", { handoffId }, credential, [200]);
 }
 
-// If the original session is gone, only reconcile an existing receipt.
-export function deliverHandoffReceipt(request, credential, needsSession, session) {
-  if (needsSession && !session) return lookupHandoffReceipt(request.handoffId, credential);
-  return submitHandoffWithReceipt(session ? { ...request, websiteSession: session } : request, credential);
+// Only a validated receipt confirms desktop acceptance. A missing reply can
+// leave the task queued, so distinguish uncertainty from an explicit refusal.
+export async function deliverHandoff(request, credential, { lookupOnly = false } = {}) {
+  try {
+    const receipt = lookupOnly
+      ? await lookupHandoffReceipt(request.handoffId, credential)
+      : await submitHandoffWithReceipt(request, credential);
+    return { status: "accepted", receipt };
+  } catch (error) {
+    switch (error.code) {
+      case "EXTENSION_CREDENTIAL_REQUIRED":
+      case "PAIRING_REQUIRED":
+        return { status: "rejected", reason: "pairing" };
+      case "UNSUPPORTED_LINK":
+        return { status: "rejected", reason: "unsupported" };
+      case "HANDOFF_CONFLICT":
+        return { status: "rejected", reason: "conflict" };
+      case "HANDOFF_NOT_FOUND":
+        return { status: "rejected", reason: "notFound" };
+      case "INVALID_WEBSITE_SESSION":
+        return { status: "rejected", reason: "invalidSession" };
+      case "FORBIDDEN_ORIGIN":
+      case "HANDOFF_REJECTED":
+      case "INVALID_HANDOFF_ID":
+      case "INVALID_REQUEST":
+        return { status: "rejected", reason: "rejected" };
+      case "DESKTOP_UNREACHABLE":
+        return { status: "unconfirmed", reason: "unreachable" };
+      case "HANDOFF_STORAGE_FAILED":
+        return { status: "unconfirmed", reason: "storage" };
+      default:
+        return { status: "unconfirmed", reason: error instanceof ExtensionRequestError ? "unknown" : "local" };
+    }
+  }
 }
 
 export async function sha256Hex(value) {
